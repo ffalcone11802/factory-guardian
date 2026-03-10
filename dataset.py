@@ -28,6 +28,7 @@ class CustomDataset(Dataset):
                 label_list.extend(l)
                 mask_list.extend(g)
 
+        self.file_list = file_list
         self.files = list(zip(file_list, label_list, mask_list))
 
         self.transform = transform

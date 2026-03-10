@@ -1,10 +1,12 @@
 import json
 import os
+import random
 import time
 
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from PIL import Image
 from sklearn.metrics import roc_auc_score, classification_report, roc_curve, auc
 from sympy.matrices.eigen import eigenvals_error_message
 from torch import nn, optim
@@ -25,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 num_workers = 0
 batch_size = 16
-category = "wood"
+category = "zipper"
 img_size = 256
 
 train_transform = transforms.Compose([
@@ -247,8 +249,8 @@ std = np.std(val_pixel_scores)
 threshold = mu + std * 2
 print(f"Threshold px: {threshold}")
 print(f"Threshold img: {th}")
-# with open(os.path.join("weights", f"{category}.json"), "w") as f:
-#     json.dump({"px_level_th": float(threshold), "img_level_th": float(th)}, f, indent=4)
+with open(os.path.join("weights", f"{category}.json"), "w") as f:
+    json.dump({"px_level_th": float(threshold), "img_level_th": float(th)}, f, indent=4)
 threshold = config["px_level_th"]
 th = config["img_level_th"]
 
@@ -306,27 +308,43 @@ print(defect_scores.mean(), normal_scores.mean())
 
 # FPS
 model.eval()
-total_images = 0
-production_dataloader = DataLoader(
-    test_dataset, batch_size=1, num_workers=num_workers, shuffle=True, collate_fn=collate_fn
-)
-start = time.perf_counter()
+# total_images = 0
+# img_list = []
+# for img_path in test_dataset.file_list:
+#     img = Image.open(img_path).convert("RGB")
+#     x = test_transform(img)
+#     x = x.unsqueeze(0).to(device)
+#     img_list.append(x)
+# random.shuffle(img_list)
+
+N = 1000
+x = torch.randn(1, 3, 256, 256)
 
 with torch.no_grad():
-    for x, _, gt in production_dataloader:
-        x = x.to(device)
+    for _ in range(100):
+        model(x)
+
+    start = time.perf_counter()
+
+    for _ in range(N):
         x_hat, _, _ = model(x)
 
         error_map = torch.sum((x - x_hat) ** 2, dim=1, keepdim=True)
         error_map = apply_gaussian_smoothing(error_map, 5, 1.0)
 
-        error_map = error_map.flatten().cpu().numpy()
-        thresholded = (error_map > threshold).astype(int)
+        thresholded = (error_map > threshold).cpu().numpy().astype(int)
 
-        total_images += x.shape[0]
+        flat = error_map.view(error_map.size(0), -1)
+        k = max(1, int(0.01 * flat.size(1)))
+        topk = torch.topk(flat, k, dim=1)[0]
+        score = topk.mean(dim=1)
+        pred = (score > th).cpu().numpy().astype(int)
 
-end = time.perf_counter()
-print(f"Average inference time: {total_images / (end - start):.4f} fps")
+    end = time.perf_counter()
+
+avg_time_ms = (end - start) / N * 1000
+fps = 1000 / avg_time_ms
+print(f"Average inference time: {avg_time_ms:.4f} ms, FPS: {fps:.4f} fps")
 
 
 model.eval()

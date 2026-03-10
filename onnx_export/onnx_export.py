@@ -1,9 +1,13 @@
 import json
 import os
 import time
+
+import numpy as np
 import torch
 import torch.nn as nn
 import onnxruntime as ort
+from PIL import Image
+from torchvision import transforms
 
 from loss import apply_gaussian_smoothing
 from model_new import LiteVAE
@@ -45,13 +49,13 @@ model.cpu()
 
 # 1️⃣ Esporta il modello
 dummy_input = torch.randn(1, 3, 256, 256)
-torch.onnx.export(model, dummy_input, "model.onnx",
-                  export_params=True,
-                  opset_version=17,
-                  input_names=["input"],
-                  output_names=["output"],
-                  dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}},
-                  strict=False)
+# torch.onnx.export(model, dummy_input, "model.onnx",
+#                   export_params=True,
+#                   opset_version=17,
+#                   input_names=["input"],
+#                   output_names=["output"],
+#                   dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}},
+#                   strict=False)
 
 
 # 2️⃣ Crea sessione ONNX Runtime
@@ -62,14 +66,16 @@ x_np = dummy_input.cpu().numpy()
 outputs = session.run(None, {"input": x_np})
 
 # Warm-up
-for _ in range(10):
+for _ in range(100):
     session.run(None, {"input": x_np})
 
 # Misura inferenza
-N = 100
+N = 1000
+
 start = time.perf_counter()
 for _ in range(N):
     outputs = session.run(None, {"input": x_np})
+
     outputs = torch.tensor(outputs[0])
     inputs = torch.tensor(x_np)
     error_map = torch.sum((inputs - outputs) ** 2, dim=1, keepdim=True)
