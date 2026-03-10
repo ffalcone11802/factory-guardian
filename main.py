@@ -18,9 +18,9 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from scipy.ndimage import label
 
-from dataset import CustomDataset, collate_fn
+from dataset import MVTecDataset
 from loss import SSIMLoss, apply_gaussian_smoothing
-from utils import plot_partial_roc
+from _utils import plot_partial_roc
 from model_new import LiteVAE
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,81 +30,59 @@ batch_size = 16
 category = "zipper"
 img_size = 256
 
+
+# -------- PRE-PROCESSING --------
+
+# Training pre-processing
 train_transform = transforms.Compose([
     transforms.Resize((img_size, img_size)),
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),
     transforms.ToTensor(),
-    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 ])
 
+# Test pre-processing
 test_transform = transforms.Compose([
     transforms.Resize((img_size, img_size)),
     transforms.ToTensor(),
 ])
 
-train_dataset = CustomDataset(f"data/{category}", transform=train_transform)
-test_dataset = CustomDataset(f"data/{category}", phase="test", transform=test_transform)
-# test_dataset_defect = CustomDataset("data/", phase="test", transform=transform)
+# Datasets
+train_dataset = MVTecDataset(f"data/{category}", phase="train", transform=train_transform)
+test_dataset = MVTecDataset(f"data/{category}", phase="test", transform=test_transform)
 
-print("Loaded dataset")
-
+# Pick 10% of training set for validation
 train_idx, valid_idx = train_test_split(range(len(train_dataset)), test_size=0.1)
 
-# define samplers for getting training and validation batches
+# Samplers for getting training and validation sets
 train_sampler = SubsetRandomSampler(train_idx)
 val_sampler = SubsetRandomSampler(valid_idx)
 
+# Dataloaders
 train_loader = DataLoader(
-    train_dataset, sampler=train_sampler, batch_size=batch_size, num_workers=num_workers, collate_fn=collate_fn
-)
-val_loader = DataLoader(
-    train_dataset, sampler=val_sampler, batch_size=batch_size, num_workers=num_workers, collate_fn=collate_fn
-)
-test_loader = DataLoader(
-    test_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True, collate_fn=collate_fn
+    train_dataset,
+    sampler=train_sampler,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    collate_fn=train_dataset.collate_fn
 )
 
-# helper function to un-normalize and display an image
-# def imshow(img):
-#     # img = img / 2 + 0.5  # unnormalize
-#     plt.imshow(np.transpose(img, (1, 2, 0)))  # convert from Tensor to Image
-#
-# # obtain one batch of training images
-# dataiter = iter(train_loader)
-# images = next(dataiter)
-# images = images.numpy() # convert images to numpy for display
-#
-# # plot the images in the batch, along with the corresponding labels
-# fig = plt.figure(figsize=(12, 4))
-# # display 20 images
-# for idx in np.arange(batch_size):
-#     ax = fig.add_subplot(2, int(batch_size/2), idx+1, xticks=[], yticks=[])
-#     imshow(images[idx])
-#     # ax.set_title(classes[labels[idx]])
-# plt.show()
-#
-#
-# rgb_img = np.squeeze(images[2])
-# channels = ['red channel', 'green channel', 'blue channel']
-# # print(classes[labels[2]])
-#
-# fig = plt.figure(figsize = (12, 4))
-# for idx in np.arange(rgb_img.shape[0]):
-#     ax = fig.add_subplot(1, 3, idx + 1)
-#     img = rgb_img[idx]
-#     ax.imshow(img, cmap='gray')
-#     ax.set_title(channels[idx])
-#     width, height = img.shape
-#     thresh = img.max()/2.5
-#     for x in range(width):
-#         for y in range(height):
-#             val = round(img[x][y],2) if img[x][y] !=0 else 0
-#             ax.annotate(str(val), xy=(y,x),
-#                     horizontalalignment='center',
-#                     verticalalignment='center', size=8,
-#                     color='white' if img[x][y]<thresh else 'black')
-# plt.show()
+val_loader = DataLoader(
+    train_dataset,
+    sampler=val_sampler,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    collate_fn=train_dataset.collate_fn
+)
+
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=batch_size,
+    num_workers=num_workers,
+    shuffle=True,
+    collate_fn=test_dataset.collate_fn
+)
+
 
 model = LiteVAE(z_dim=128).to(device)
 summary(model, input_data=torch.zeros(1, 3, img_size, img_size).to(device))
@@ -224,7 +202,7 @@ val_pixel_scores = []
 img_scores = []
 
 with torch.no_grad():
-    for x, _, _ in val_loader:   # SOLO immagini normali
+    for x in val_loader:   # SOLO immagini normali
         x = x.to(device)
         x_hat, _, _ = model(x)
 
@@ -249,8 +227,8 @@ std = np.std(val_pixel_scores)
 threshold = mu + std * 2
 print(f"Threshold px: {threshold}")
 print(f"Threshold img: {th}")
-with open(os.path.join("weights", f"{category}.json"), "w") as f:
-    json.dump({"px_level_th": float(threshold), "img_level_th": float(th)}, f, indent=4)
+# with open(os.path.join("weights", f"{category}.json"), "w") as f:
+#     json.dump({"px_level_th": float(threshold), "img_level_th": float(th)}, f, indent=4)
 threshold = config["px_level_th"]
 th = config["img_level_th"]
 
