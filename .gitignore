@@ -207,8 +207,9 @@ marimo/_lsp/
 __marimo__/
 
 # Custom
+checkpoints/
 data/
 plots/
-weights/
+results/
 .idea
 *.onnx

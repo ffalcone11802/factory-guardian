@@ -5,8 +5,8 @@ from torch.utils.data import Dataset
 from PIL import Image
 from pathlib import Path
 
-from dataset.sample import Sample, IMG_EXTS
-from utils.folder import path_joiner, list_dir
+from factory_guardian.dataset.sample import Sample, IMG_EXTS
+from factory_guardian.utils.folder import path_joiner, list_dir
 
 
 class MVTecDataset(Dataset):
@@ -180,7 +180,7 @@ class MVTecDataset(Dataset):
         # Create all-zero tensors if no mask is available
         mask = tuple(
             torch.zeros(1, i.size(1), i.size(2), device=i.device, dtype=i.dtype)
-            if m is None else m
+            if m is None else m > 0.5
             for i, m in zip(img, mask)
         )
 
