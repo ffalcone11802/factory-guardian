@@ -3,16 +3,18 @@ name: fg-env
 
 # Channels to search for packages
 channels:
-  - pytorch       # Main channel for PyTorch and related libraries
-  # - nvidia        # NVIDIA channel for CUDA and GPU dependencies. Enable if CUDA is available
-  - conda-forge   # Community maintained packages
+  - pytorch
+  - conda-forge
 
 # Dependencies to install in the environment
 dependencies:
-  - python=3.11           # Specify Python version
-  - pytorch=2.5.1         # PyTorch for deep learning tasks
-  - torchvision=0.20.1    # Vision library that complements PyTorch
-  # - pytorch-cuda=12.1     # CUDA toolkit for GPU acceleration. Enable if CUDA is available
-  # - ipykernel=6.29.5      # Jupyter kernel for interactive notebooks
-  - matplotlib=3.10.1     # Plotting library for creating graphs and figures
-  - scikit-learn=1.6.1    # Machine learning library for Python
+  - python=3.11
+  - matplotlib=3.10.1
+  - numpy=2.4.2
+  - onnx=1.16.1
+  - onnxruntime=1.22.2
+  - Pillow=10.4.0
+  - pytorch=2.5.1
+  - scikit-learn=1.6.1
+  - torchvision=0.20.1
+  - tqdm=4.67.3

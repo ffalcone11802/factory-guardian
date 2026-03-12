@@ -1,0 +1,10 @@
+# Python 3.11 is recommended
+matplotlib==3.10.1
+numpy==2.4.2
+onnx==1.16.1
+onnxruntime==1.22.2
+Pillow==10.4.0
+pytorch==2.5.1
+scikit-learn==1.6.1
+torchvision==0.20.1
+tqdm==4.67.3
