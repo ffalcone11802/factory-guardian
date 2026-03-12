@@ -2,21 +2,29 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
 
+from factory_guardian.utils.folder import path_joiner, check_dir, PLOTS_FOLDER
 
-def plot_train_loss(train_losses):
+check_dir(PLOTS_FOLDER)
+
+
+def plot_train_loss(category, train_losses):
     """Plot training loss over epochs."""
     plt.figure(figsize=(10, 5))
     plt.plot(train_losses, color="tab:blue")
     plt.title("LiteVAE Training Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.show()
+    plt.grid(True)
+
+    save_path = path_joiner(PLOTS_FOLDER, f"{category}_train_loss.png")
+    plt.savefig(save_path)
+    plt.close()
+
+    print(f"Training loss plotted, saved at {str(save_path)}")
 
 
 def plot_qualitative_results(
-    img, label, gt, anom_map, anom_score, px_pred, img_pred, max_images=8
+    category, img, label, gt, anom_map, anom_score, px_pred, img_pred, max_images=8
 ):
     """Plot a qualitative grid: input, GT, anomaly map, pixel prediction."""
     # Limit the number of images to keep the grid readable
@@ -56,11 +64,16 @@ def plot_qualitative_results(
         plt.axis("off")
 
     plt.tight_layout()
-    plt.show()
+
+    save_path = path_joiner(PLOTS_FOLDER, f"{category}_qualitative_results.png")
+    plt.savefig(save_path)
+    plt.close()
+
+    print(f"Qualitative results plotted, saved at {str(save_path)}")
 
 
 def plot_partial_roc(
-    y_true, scores, chosen_threshold, category, max_fpr=False, pixel_level=False
+    category, y_true, scores, chosen_threshold, max_fpr=1.0, scope="pixel"
 ):
     fpr, tpr, thresholds = roc_curve(y_true, scores)
     roc_auc = auc(fpr, tpr)
@@ -78,7 +91,12 @@ def plot_partial_roc(
 
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title(f"{'Pixel' if pixel_level else 'Image'}-level ROC Curve for '{category}'")
+    plt.title(f"{scope}-level ROC Curve for '{category}'")
     plt.legend(loc='lower right')
     plt.grid(True)
-    plt.show()
+
+    save_path = path_joiner(PLOTS_FOLDER, f"{category}_{scope}_level_roc.png")
+    plt.savefig(save_path)
+    plt.close()
+
+    print(f"{scope}-level ROC curve plotted, saved at {str(save_path)}")

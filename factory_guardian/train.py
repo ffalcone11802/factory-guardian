@@ -10,7 +10,7 @@ from tqdm import tqdm
 from factory_guardian.dataset import MVTecDataset
 from factory_guardian.evaluation import predict
 from factory_guardian.model import LiteVAE, get_init_function, ELBOLoss
-from factory_guardian.utils.folder import check_dir, path_joiner
+from factory_guardian.utils.folder import check_dir, path_joiner, CHECKPOINTS_FOLDER, WEIGHTS_FOLDER, PARAMS_FOLDER
 from factory_guardian.utils.plot import plot_train_loss
 
 
@@ -79,6 +79,10 @@ def train(args):
     num_epochs = args.num_epochs
     train_losses = []
 
+    checkpoints_folder = path_joiner(CHECKPOINTS_FOLDER, category)
+    check_dir(checkpoints_folder, replace=True)
+    check_dir(WEIGHTS_FOLDER)
+
     print("Training begun")
 
     # Training loop
@@ -96,16 +100,14 @@ def train(args):
         train_losses.append(epoch_loss)
         print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.6f}")
 
-        checkpoints_folder = "checkpoints"
-        check_dir(checkpoints_folder)
-
         # Save model checkpoints
         if (epoch + 1) % args.save_checkpoint_freq == 0:
+            save_path = path_joiner(checkpoints_folder, f"{category}_epoch_{epoch + 1}.pth")
             torch.save(
                 model.state_dict(),
-                path_joiner(checkpoints_folder, f"{category}_epoch_{epoch + 1}.pth")
+                save_path
             )
-            print("Checkpoint saved")
+            print(f"Checkpoint saved at {str(save_path)}")
 
         # Print some reconstructions
         if (epoch + 1) % args.save_imgs_freq == 0:
@@ -135,35 +137,31 @@ def train(args):
                 path_joiner(checkpoints_folder, f"{category}_epoch_{epoch + 1}_val.png")
             )
 
-        weights_folder = path_joiner("results", "weights")
-        check_dir(weights_folder)
-
         # Save final parameters
         if (epoch + 1) == num_epochs:
+            save_path = path_joiner(WEIGHTS_FOLDER, f"{category}.pth")
             torch.save(
                 model.state_dict(),
-                path_joiner(weights_folder, f"{category}.pth")
+                save_path
             )
-            print("Final parameters saved")
+            print(f"Final parameters saved at {str(save_path)}")
 
     print("Training ended")
-    print("--------------------------------------------------------")
 
     # Plot training loss
-    plot_train_loss(train_losses)
+    plot_train_loss(category, train_losses)
+
+    print("--------------------------------------------------------")
 
 
     # -------- THRESHOLD SELECTION --------
 
     model.eval()
 
-    imgs, pixels, _ = predict(
+    img_scores, pixel_scores, _ = predict(
         model=model,
         dataloader=val_loader
     )
-
-    _, img_scores = zip(*imgs)
-    _, pixel_scores = zip(*pixels)
 
     mu = np.mean(img_scores)
     std = np.std(img_scores)
@@ -175,17 +173,17 @@ def train(args):
     px_level_th = mu + std * 2
     print(f"Pixel-level threshold: {px_level_th:.4f}")
 
-    save_folder = path_joiner("results", "params")
-    check_dir(save_folder)
+    check_dir(PARAMS_FOLDER)
+    save_path = path_joiner(PARAMS_FOLDER, f"{category}.json")
 
-    with open(path_joiner(save_folder, f"{category}.json"), "w") as f:
+    with open(save_path, "w") as f:
         config = {
-            "px_level_th": float(px_level_th.cpu().numpy()),
-            "img_level_th": float(img_level_th.cpu().numpy())
+            "px_level_th": float(px_level_th),
+            "img_level_th": float(img_level_th)
         }
         json.dump(config, f, indent=4)
 
-    print("Threshold values saved")
+    print(f"Threshold values saved at {str(save_path)}")
     print("--------------------------------------------------------")
 
 

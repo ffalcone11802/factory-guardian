@@ -30,23 +30,16 @@ def list_dir(
             yield d
 
 
-def parent_dir(
-    path: Union[str, PathLike[str]]
-) -> str:
-    return str(Path(path).parent)
-
-
-def working_dir() -> str:
-    return str(Path.cwd())
-
-
-def check_path(
-    path: Union[str, PathLike[str]]
-) -> bool:
-    return Path(path).exists()
-
-
 def path_joiner(
     *args: Union[str, PathLike[str]]
 ) -> Path:
     return Path(*args)
+
+
+_RESULTS_FOLDER = "results"
+
+PLOTS_FOLDER = path_joiner(_RESULTS_FOLDER, "plots").resolve()
+CHECKPOINTS_FOLDER = path_joiner(_RESULTS_FOLDER, "checkpoints").resolve()
+PARAMS_FOLDER = path_joiner(_RESULTS_FOLDER, "params").resolve()
+WEIGHTS_FOLDER = path_joiner(_RESULTS_FOLDER, "weights").resolve()
+ONNX_FOLDER = Path("onnx_inference").resolve()

@@ -7,6 +7,7 @@ from factory_guardian.evaluation.postprocess import post_process
 def predict(
     model,
     dataloader,
+    test = False,
     img_level_th = None,
     px_level_th = None,
 ):
@@ -16,7 +17,9 @@ def predict(
     last_batch = None
 
     with torch.inference_mode():
-        for x, label, gt in dataloader:
+        for batch in dataloader:
+            x = batch[0] if isinstance(batch, tuple) else batch
+
             # LiteVAE inference
             outputs, _, _ = model(x)
 
@@ -28,16 +31,20 @@ def predict(
                 sigma=1.0,
             )
 
-            # Save results for image-level AUROC
-            img_true.extend(label.cpu().numpy())
+            # Save results for image-level AUROC and pixel-level AUROC
             img_scores.extend(anom_score.cpu().numpy())
-
-            # Save results for pixel-level AUROC
-            gt_int = gt.to(torch.int32)
-            px_true.extend(gt_int.cpu().numpy().ravel())
             px_scores.extend(anom_map.cpu().numpy().ravel())
 
-            if img_level_th is not None and px_level_th is not None:
+            if test:
+                label, gt = batch[1], batch[2]
+
+                # Save labels for image-level AUROC
+                img_true.extend(label.cpu().numpy())
+
+                # Save ground-truth masks for pixel-level AUROC
+                gt_int = gt.to(torch.int32)
+                px_true.extend(gt_int.cpu().numpy().ravel())
+
                 # Compute predictions based on thresholds
                 pred_px = (anom_map > px_level_th).to(torch.int32)
                 pred_img = (anom_score > img_level_th).to(torch.int32)
@@ -56,12 +63,12 @@ def predict(
                     pred_img.cpu().numpy(),
                 )
 
-    img_items = (img_true, img_scores) + ((img_pred,) if img_pred else ())
-    px_items = (px_true, px_scores) + ((px_pred,) if px_pred else ())
+    img_items = zip(*(img_true, img_scores, img_pred)) if test else img_scores
+    px_items = zip(*(px_true, px_scores, px_pred)) if test else px_scores
 
     return (
-        list(zip(*img_items)),
-        list(zip(*px_items)),
+        list(img_items),
+        list(px_items),
         last_batch
     )
 
@@ -69,6 +76,9 @@ def predict(
 def predict_dummy(model, x):
     # LiteVAE inference
     outputs, _, _ = model(x)
+
+    if not isinstance(x, Tensor):
+        x = torch.tensor(x)
 
     if not isinstance(outputs, Tensor):
         outputs = torch.tensor(outputs)

@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     # Data
     parser.add_argument(
-        "--dataroot", type=str, default="./data",
+        "--data_root", type=str, default="./data",
         help="root directory of dataset containing folders for the categories"
     )
     parser.add_argument(
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         help="save model checkpoints every checkpoint_freq epochs"
     )
     parser.add_argument(
-        "--verbose", type=bool, default=True,
+        "--verbose", type=bool, default=False,
         help="enable verbose output during training"
     )
 
@@ -76,9 +76,15 @@ if __name__ == "__main__":
         "--inference_mode", type=bool, default=False,
         help="avoid training and only run inference on the test set"
     )
+
+    # Inference params
     parser.add_argument(
-        "--onnx", type=bool, default=False,
-        help="measure inference time using ONNX"
+        "--num_warm_up_epochs", type=int, default=20,
+        help="number of epochs to warm up the model"
+    )
+    parser.add_argument(
+        "--num_inference_epochs", type=int, default=1000,
+        help="number of epochs to run inference on a dummy input"
     )
 
     args = parser.parse_args()
