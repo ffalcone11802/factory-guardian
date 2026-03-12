@@ -93,4 +93,4 @@ def get_init_function(init_type: str = "xavier"):
     try:
         return init_map[init_type]
     except KeyError:
-        raise NotImplementedError(f"Initialization method {init_type} is not implemented")
+        raise NotImplementedError(f"Initialization method '{init_type}' is not implemented")

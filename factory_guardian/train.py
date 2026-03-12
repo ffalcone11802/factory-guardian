@@ -1,7 +1,9 @@
-import json
+from typing import Tuple
+from argparse import Namespace
 import numpy as np
+import json
 import torch
-from torch import optim
+from torch import optim, nn, Tensor
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from torchvision import transforms, utils
 from sklearn.model_selection import train_test_split
@@ -10,15 +12,28 @@ from tqdm import tqdm
 from factory_guardian.dataset import MVTecDataset
 from factory_guardian.evaluation import predict
 from factory_guardian.model import LiteVAE, get_init_function, ELBOLoss
-from factory_guardian.utils.folder import check_dir, path_joiner, CHECKPOINTS_FOLDER, WEIGHTS_FOLDER, PARAMS_FOLDER
+from factory_guardian.utils.folder import (
+    check_folder,
+    path_joiner,
+    CHECKPOINTS_FOLDER,
+    WEIGHTS_FOLDER,
+    PARAMS_FOLDER
+)
 from factory_guardian.utils.plot import plot_train_loss
 
 
-def train(args):
+def train(args: Namespace):
+    """
+    Main function to train the LiteVAE and choose the thresholds.
+
+    Args:
+        args (Namespace): Command-line arguments.
+    """
+    # Select the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    category = args.category
     img_size = 256
+    category = args.category
     batch_size = args.batch_size
     num_workers = args.num_workers
 
@@ -34,7 +49,7 @@ def train(args):
     ])
 
     # Training dataset
-    train_dataset = MVTecDataset(f"data/{category}", phase="train", transform=train_transform)
+    train_dataset = MVTecDataset(f"data/{category}", train=True, transform=train_transform)
 
     # Pick 10% of training set for validation
     train_idx, valid_idx = train_test_split(range(len(train_dataset)), test_size=0.1)
@@ -76,17 +91,19 @@ def train(args):
     # Loss
     criterion = ELBOLoss(beta=args.beta)
 
+    # Prepare checkpoints and weights folders
+    checkpoints_folder = path_joiner(CHECKPOINTS_FOLDER, category)
+    check_folder(checkpoints_folder, replace=True)
+    check_folder(WEIGHTS_FOLDER)
+
     num_epochs = args.num_epochs
     train_losses = []
-
-    checkpoints_folder = path_joiner(CHECKPOINTS_FOLDER, category)
-    check_dir(checkpoints_folder, replace=True)
-    check_dir(WEIGHTS_FOLDER)
 
     print("Training begun")
 
     # Training loop
     for epoch in range(num_epochs):
+        # Train epoch
         epoch_loss, x, outputs = train_epoch(
             model=model,
             train_loader=train_loader,
@@ -158,24 +175,28 @@ def train(args):
 
     model.eval()
 
+    # LiteVAE inference
     img_scores, pixel_scores, _ = predict(
         model=model,
         dataloader=val_loader
     )
 
+    # Compute image-level threshold
     mu = np.mean(img_scores)
     std = np.std(img_scores)
     img_level_th = mu + std * 2
     print(f"Image-level threshold: {img_level_th:.4f}")
 
+    # Compute pixel-level threshold
     mu = np.mean(pixel_scores)
     std = np.std(pixel_scores)
     px_level_th = mu + std * 2
     print(f"Pixel-level threshold: {px_level_th:.4f}")
 
-    check_dir(PARAMS_FOLDER)
+    check_folder(PARAMS_FOLDER)
     save_path = path_joiner(PARAMS_FOLDER, f"{category}.json")
 
+    # Save threshold values
     with open(save_path, "w") as f:
         config = {
             "px_level_th": float(px_level_th),
@@ -187,10 +208,42 @@ def train(args):
     print("--------------------------------------------------------")
 
 
-def train_epoch(model, train_loader, device, optimizer, criterion, epoch, verbose=True):
+def train_epoch(
+    model: nn.Module,
+    train_loader: DataLoader,
+    device: torch.device,
+    optimizer: optim.Optimizer,
+    criterion: nn.Module,
+    epoch: int,
+    verbose: bool = False
+) -> Tuple[float, Tensor, Tensor]:
+    """
+    Execute a single training epoch for the LiteVAE on the provided training data.
+
+    Iterate through the training data loader and updates model parameters using
+    the specified optimizer and criterion. Calculate the average loss for the epoch
+    and return it along with the final batch input and output tensors.
+
+    Args:
+        model (nn.Module): VAE to be trained.
+        train_loader (DataLoader): DataLoader providing the training data.
+        device (torch.device): Device on which the training will be performed.
+        optimizer (optim.Optimizer): Optimizer used for updating model parameters.
+        criterion (nn.Module): Loss function used for calculating training loss.
+        epoch (int): Current epoch number (0-based indexing).
+        verbose (bool): Whether to display a progress bar using tqdm. Defaults to False.
+
+    Returns:
+        Tuple[float, Tensor, Tensor]: A tuple containing:
+
+            - The average loss for the epoch as a float.
+            - The final batch input tensor.
+            - The final batch output tensor.
+    """
     model.train()
     running_loss = 0.0
 
+    # Initialize tqdm progress bar
     iter_data = tqdm(
         train_loader, total=len(train_loader), desc=f"Epoch {epoch + 1}", disable=not verbose
     )
@@ -198,7 +251,7 @@ def train_epoch(model, train_loader, device, optimizer, criterion, epoch, verbos
     for x in iter_data:
         x = x.to(device)
 
-        # Forward pass
+        # LiteVAE inference
         outputs, mu, log_var = model(x)
 
         # Reconstruction + beta * KL
@@ -215,9 +268,29 @@ def train_epoch(model, train_loader, device, optimizer, criterion, epoch, verbos
     return epoch_loss, x, outputs
 
 
-def val_epoch(model, val_loader, device):
+def val_epoch(
+    model: nn.Module,
+    val_loader: DataLoader,
+    device: torch.device
+) -> Tuple[Tensor, Tensor]:
+    """
+    Perform a single inference pass for the LiteVAE on the provided validation data.
+
+    Args:
+        model (nn.Module): VAE to be performed inference on.
+        val_loader (DataLoader): DataLoader providing the validation data.
+        device (torch.device): Device on which the inference will be performed.
+
+    Returns:
+        Tuple[Tensor, Tensor]: A tuple containing the validation inputs and the model outputs.
+    """
     model.eval()
+
+    # Get a single batch from the validation dataloader
     x = next(iter(val_loader))
     x = x.to(device)
+
+    # LiteVAE inference
     outputs, _, _ = model(x)
+
     return x, outputs

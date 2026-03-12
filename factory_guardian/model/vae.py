@@ -136,7 +136,13 @@ class LiteVAE(nn.Module):
             Tuple[Tensor, Tensor, Tensor]: A tuple containing the decoded output,
                 mean of the latent representation, and log variance of the latent representation.
         """
+        # Encode
         mu, logvar = self.encode(x)
+
+        # Sample from the latent space
         z = self.reparameterize(mu, logvar)
+
+        # Decode
         output = self.decode(z)
+
         return output, mu, logvar

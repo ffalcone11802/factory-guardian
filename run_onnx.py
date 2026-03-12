@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--category", type=str, default="toothbrush",
         help="object category to run inference on "
-             "(only for compatibility with measures done using PyTorch models)"
+             "(only for compatibility with evaluation done using the PyTorch model)"
     )
 
     # Model hyperparameters

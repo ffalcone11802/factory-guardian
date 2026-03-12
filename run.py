@@ -8,10 +8,6 @@ if __name__ == "__main__":
 
     # Data
     parser.add_argument(
-        "--data_root", type=str, default="./data",
-        help="root directory of dataset containing folders for the categories"
-    )
-    parser.add_argument(
         "--category", type=str, default="toothbrush",
         help="object category to train or test on"
     )
@@ -60,11 +56,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save_imgs_freq", type=int, default=10,
-        help="save sample reconstructions every save_epoch_freq epochs"
+        help="save sample reconstructions every save_imgs_freq epochs"
     )
     parser.add_argument(
         "--save_checkpoint_freq", type=int, default=20,
-        help="save model checkpoints every checkpoint_freq epochs"
+        help="save model checkpoints every save_checkpoint_freq epochs"
     )
     parser.add_argument(
         "--verbose", type=bool, default=False,
@@ -74,7 +70,7 @@ if __name__ == "__main__":
     # Pipeline
     parser.add_argument(
         "--inference_mode", type=bool, default=False,
-        help="avoid training and only run inference on the test set"
+        help="skip training and only run inference on the test set"
     )
 
     # Inference params

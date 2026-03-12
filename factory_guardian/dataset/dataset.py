@@ -1,4 +1,4 @@
-from typing import Callable, Optional, Union, List, Tuple
+from typing import Callable, Optional, Union, List, Tuple, Any
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -6,20 +6,20 @@ from PIL import Image
 from pathlib import Path
 
 from factory_guardian.dataset.sample import Sample, IMG_EXTS
-from factory_guardian.utils.folder import path_joiner, list_dir
+from factory_guardian.utils.folder import path_joiner, list_folders
 
 
 class MVTecDataset(Dataset):
     """
-    The MVTecDataset class handles image datasets from MVTec anomaly detection datasets
+    The MVTecDataset class handles image datasets from MVTec anomaly detection dataset
     for training and testing.
 
     This class provides functionality to load and preprocess image data, including
-    masks when available, depending on the specified pipeline phase ('train' or 'test').
+    masks when available, depending on the specified phase (train or test).
 
     Args:
         folder (Union[str, Path]): Path to the folder containing the dataset category to read.
-        phase (str): Pipeline phase ('train' or 'test'). Defaults to 'train'.
+        train (bool): Whether to load the training or testing data. Defaults to True.
         transform (Callable, optional): Transform function or pipeline for preprocessing images.
             Defaults to None.
     """
@@ -27,17 +27,18 @@ class MVTecDataset(Dataset):
     def __init__(
         self,
         folder: Union[str, Path],
-        phase: str = "train",
+        train: bool = True,
         transform: Optional[Callable] = None
     ):
-        self.phase = phase
+        self.train = train
         self.transform = transform
 
         # Base path to the folder containing the data to be read
+        phase = "train" if train else "test"
         base = path_joiner(folder, phase)
 
         # If the phase is "train"...
-        if phase == "train":
+        if train:
             self.samples = []
 
             # ...read the images from the "good" folder
@@ -47,11 +48,11 @@ class MVTecDataset(Dataset):
                 self.samples = [Sample(img=i, label=0, mask=None) for i in imgs]
 
         # If the phase is "test"...
-        elif phase == "test":
+        else:
             self.samples = []
 
             # ...read images and masks from the "good" and "defective" folders
-            for goodness in list_dir(base):
+            for goodness in list_folders(base):
 
                 # Set the label to 0 for "good" images and 1 for "defective" images
                 label = 0 if goodness.name == "good" else 1
@@ -64,10 +65,10 @@ class MVTecDataset(Dataset):
                 if gt_dir.is_dir():
                     masks = self._list_images(gt_dir)
                 else:
-                    # If the "ground_truth" folder doesn't exist, assume no masks
+                    # If the "ground_truth" folder does not exist, assume no masks
                     masks = [None] * len(imgs)
 
-                # If the number of images and masks don't match, raise an error
+                # If the number of images and masks do not match, raise an error
                 if masks and len(masks) != len(imgs):
                     raise ValueError(
                         f"Mask count mismatch for '{goodness.name}': "
@@ -79,10 +80,6 @@ class MVTecDataset(Dataset):
                     for img, mask in zip(imgs, masks)
                 )
 
-        # If the phase is neither "train" nor "test", raise an error
-        else:
-            raise ValueError("Phase must be either 'train' or 'test'")
-
     def __len__(self) -> int:
         """
         Get the dataset length.
@@ -92,21 +89,22 @@ class MVTecDataset(Dataset):
         """
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> Union[Tensor, Tuple[Tensor, int, Optional[Tensor]]]:
+    def __getitem__(self, idx: int) -> Union[Any, Tuple[Any, int, Optional[Any]]]:
         """
-        Retrieve an item from the dataset at the specified index.
+        Retrieve and preprocess a sample from the dataset based on its index.
 
-        If the phase is "train", only the transformed image is returned.
-        Otherwise, the transformed image, label, and optionally the transformed mask
-        (if it exists) are returned.
+        Open and transform the image at the provided index. If in the train phase,
+        only the transformed image is returned. If in the test phase, retrieve
+        and transform the corresponding mask (if available) and return it alongside the image
+        and its associated label.
 
         Args:
-            idx (int): Index of the dataset item to retrieve.
+            idx (int): Index of the sample to retrieve.
 
         Returns:
-            Union[Tensor, Tuple[Tensor, int, Optional[Tensor]]]: Transformed image
-                and optionally the label and mask, depending on the phase.
-                Returns only the transformed image during the "train" phase.
+            Union[Any, Tuple[Any, int, Optional[Any]]]: The transformed image if in the train phase;
+                a tuple containing the transformed image, the label, and optionally
+                the transformed mask (if available) if in the test phase.
         """
         sample = self.samples[idx]
 
@@ -116,7 +114,7 @@ class MVTecDataset(Dataset):
             img = self.transform(img)
 
         # Return only the transformed image during the "train" phase
-        if self.phase == "train":
+        if self.train:
             return img
 
         # Read and transform mask (if available)
@@ -131,7 +129,7 @@ class MVTecDataset(Dataset):
     @staticmethod
     def _list_images(dir_path: Path) -> List[Path]:
         """
-        List image files in the specified directory.
+        List image files in the specified folder.
 
         Args:
             dir_path (Path): Path to the folder containing image files.
@@ -144,29 +142,28 @@ class MVTecDataset(Dataset):
 
     def collate_fn(
         self,
-        batch: List[Union[Tensor, Tuple[Tensor, int, Optional[Tensor]]]]
+        batch: List[Union[Any, Tuple[Any, int, Optional[Any]]]]
     ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         """
-        Process a batch of data by stacking its elements based on the
-        current phase (train or test).
+        Utility function to use in the corresponding DataLoader to process a batch of data
+        and stack its elements based on the current phase (train or test).
 
-        If the phase is 'train', stack the elements in the batch and return them
-        as a single tensor. Otherwise, separate the batch into images, labels, and
-        masks, and process each respectively. If no mask is available (no defects),
+        If in the train phase, stack the elements in the batch and return them
+        as a single tensor. If in the test phase, separate the batch into images, labels,
+        and masks, and process each respectively. If no mask is available (no defects),
         create an all-zero tensor.
 
         Args:
-            batch (List[Union[Tensor, Tuple[Tensor, int, Optional[Tensor]]]]):
-                List of data elements.
+            batch (List[Union[Any, Tuple[Any, int, Optional[Any]]]]): List of data elements.
 
         Returns:
-            Union[Tensor, Tuple[Tensor, Tensor, Tensor]]: If the phase is set to 'train',
-                returns a tensor by stacking the batch. Otherwise, returns a tuple containing
-                stacked tensors for images, labels, and masks.
+            Union[Tensor, Tuple[Tensor, Tensor, Tensor]]: If in the train phase,
+                returns a tensor by stacking the batch. If in the test phase,
+                returns a tuple containing stacked tensors for images, labels, and masks.
         """
-        # If the phase is 'train', stack the elements in the batch (only images)
+        # If in the train phase, stack the elements in the batch (only images)
         # and return them as a single tensor
-        if self.phase == "train":
+        if self.train:
             return torch.stack(batch)
 
         # Separate the batch into images, labels, and masks
@@ -177,10 +174,11 @@ class MVTecDataset(Dataset):
             torch.tensor(l) for l in label
         )
 
-        # Create all-zero tensors if no mask is available
         mask = tuple(
-            torch.zeros(1, i.size(1), i.size(2), device=i.device, dtype=i.dtype)
-            if m is None else m > 0.5
+            # If no mask is available, create all-zero tensors...
+            torch.zeros(1, i.size(1), i.size(2), device=i.device, dtype=i.dtype) if m is None
+            # ...otherwise, ensure that the mask is a binary tensor (0 or 1)
+            else m > 0.5
             for i, m in zip(img, mask)
         )
 
