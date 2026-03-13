@@ -174,7 +174,7 @@ Parameters can be passed as arguments to the script using the `--<arg_name>=<arg
 
 _Polytechnic University of Bari_
 
-_Academical Year 2024-2025_
+_Academic Year 2024-2025_
 
 
 ## 📚 References

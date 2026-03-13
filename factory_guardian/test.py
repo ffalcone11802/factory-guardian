@@ -100,8 +100,8 @@ def test(args: Namespace):
     print("--------------------------------------------------------")
 
     # ROC curves
-    plot_roc_curve(category, img_true, img_scores, img_level_th, scope="image")
-    plot_roc_curve(category, px_true, px_scores, px_level_th, max_fpr=0.3, scope="pixel")
+    plot_roc_curve(category, img_true, img_scores, img_level_th, scope="Image")
+    plot_roc_curve(category, px_true, px_scores, px_level_th, max_fpr=0.3, scope="Pixel")
 
     # Plot last batch
     if last_batch is not None:
