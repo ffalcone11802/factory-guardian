@@ -20,6 +20,7 @@ from factory_guardian.utils.folder import (
     PARAMS_FOLDER
 )
 from factory_guardian.utils.plot import plot_train_loss
+from factory_guardian.utils.seed import set_seed
 
 
 def train(args: Namespace):
@@ -31,6 +32,9 @@ def train(args: Namespace):
     """
     # Select the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Set seed
+    set_seed(args.seed)
 
     img_size = 256
     category = args.category

@@ -19,6 +19,12 @@ if __name__ == "__main__":
         help="dimensionality of the latent space"
     )
 
+    # Misc
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="random seed for reproducibility"
+    )
+
     # Inference params
     parser.add_argument(
         "--num_warm_up_epochs", type=int, default=100,

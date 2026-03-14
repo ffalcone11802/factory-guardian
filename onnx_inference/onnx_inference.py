@@ -1,14 +1,12 @@
 from argparse import Namespace
 import onnxruntime as ort
 import torch
-from torch import nn
+from torch import nn, Tensor
 
 from factory_guardian import inference_time
 from factory_guardian.model import LiteVAE
 from factory_guardian.utils.folder import check_folder, path_joiner, WEIGHTS_FOLDER, ONNX_FOLDER
-
-img_size = 256
-dummy_input = torch.randn(1, 3, img_size, img_size)
+from factory_guardian.utils.seed import set_seed
 
 
 def onnx_inference(args: Namespace):
@@ -18,6 +16,13 @@ def onnx_inference(args: Namespace):
     Args:
         args (Namespace): Command-line arguments.
     """
+    # Set seed
+    set_seed(args.seed)
+
+    # Dummy input
+    img_size = 256
+    dummy_input = torch.randn(1, 3, img_size, img_size)
+
     category = args.category
 
     # Model
@@ -38,7 +43,7 @@ def onnx_inference(args: Namespace):
     onnx_path = path_joiner(ONNX_FOLDER, f"{category}_model.onnx")
 
     if not onnx_path.exists():
-        onnx_export(model, category)
+        onnx_export(model, category, dummy_input)
 
     # Create ONNX Runtime session
     session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
@@ -58,7 +63,7 @@ def onnx_inference(args: Namespace):
     print(f"ONNX Runtime - Average Inference Time: {ms:.4f} ms, FPS: {fps:.4f}")
 
 
-def onnx_export(model: nn.Module, category: str):
+def onnx_export(model: nn.Module, category: str, dummy_input: Tensor):
     """
     Export a PyTorch model to ONNX format.
 
@@ -68,6 +73,7 @@ def onnx_export(model: nn.Module, category: str):
     Args:
         model (nn.Module): PyTorch model to be exported.
         category (str): Category name used for naming the exported file.
+        dummy_input (Tensor): Dummy input tensor for the model.
     """
     torch.onnx.export(
         model=model,

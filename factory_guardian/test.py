@@ -14,6 +14,7 @@ from factory_guardian.evaluation import predict, predict_single
 from factory_guardian.model import LiteVAE
 from factory_guardian.utils.folder import path_joiner, WEIGHTS_FOLDER, PARAMS_FOLDER
 from factory_guardian.utils.plot import plot_qualitative_results, plot_roc_curve
+from factory_guardian.utils.seed import set_seed
 
 
 def test(args: Namespace):
@@ -25,6 +26,9 @@ def test(args: Namespace):
     """
     # Select the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Set seed
+    set_seed(args.seed)
 
     img_size = 256
     category = args.category

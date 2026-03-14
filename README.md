@@ -147,6 +147,7 @@ Parameters can be passed as arguments to the script using the `--<arg_name>=<arg
 - `batch_size` (`16`) - batch size
 - `num_epochs` (`200`) - number of epochs
 - `lr` (`2e-4`) - learning rate
+- `seed` (`42`) - random seed for reproducibility
 - `num_workers` (`0`) - number of dataloader workers
 - `init_type` (`xavier`) - `normal`, `xavier`, `kaiming` - LiteVAE initialization method
 - `save_imgs_freq` (`10`) - save sample reconstructions every save_imgs_freq epochs
@@ -160,6 +161,7 @@ Parameters can be passed as arguments to the script using the `--<arg_name>=<arg
 
 - `category` (`toothbrush`) - object category to train or test on (only for compatibility with evaluation done using the PyTorch model)
 - `latent_dim` (`128`) - dimensionality of the latent space
+- `seed` (`42`) - random seed for reproducibility
 - `num_warm_up_epochs` (`20`) - number of epochs to warm up the model
 - `num_inference_epochs` (`1000`) - number of epochs to run inference on a dummy input
 

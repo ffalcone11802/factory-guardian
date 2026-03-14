@@ -46,6 +46,10 @@ if __name__ == "__main__":
 
     # Misc
     parser.add_argument(
+        "--seed", type=int, default=42,
+        help="random seed for reproducibility"
+    )
+    parser.add_argument(
         "--num_workers", type=int, default=0,
         help="number of dataloader workers"
     )
