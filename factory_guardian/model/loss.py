@@ -12,8 +12,8 @@ class ELBOLoss(nn.Module):
     Kullback-Leibler divergence (KL-divergence) term to enforce the latent space structure.
 
     Args:
-        reduction (str): Specifies the reduction to apply to the output.
-        beta (float): Weighting factor for the KL-divergence term.
+        reduction (str): Specifies the reduction to apply to the output. Defaults to "sum".
+        beta (float): Weighting factor for the KL-divergence term. Defaults to 1.0.
     """
 
     def __init__(
